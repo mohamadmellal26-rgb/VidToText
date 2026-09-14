@@ -11,6 +11,9 @@ import {
 import { SiDropbox, SiGoogledrive } from 'react-icons/si';
 import './herosection.css';
 
+// الاعتماد على متغير البيئة أو رابط Render المباشر
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://vidtotext.onrender.com";
+
 export const HeroSection: React.FC = () => {
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -53,7 +56,7 @@ export const HeroSection: React.FC = () => {
     setErrorMessage('');
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/convert", {
+      const response = await fetch(`${API_BASE_URL}/api/convert`, {
         method: "POST",
         body: formData,
       });
@@ -67,7 +70,7 @@ export const HeroSection: React.FC = () => {
       }
     } catch (error) {
       console.error("Network error:", error);
-      setErrorMessage("Could not connect to the Python backend server! Make sure it is running.");
+      setErrorMessage("Could not connect to the VidToText backend server! Make sure the service is live.");
     } finally {
       setLoading(false);
     }
