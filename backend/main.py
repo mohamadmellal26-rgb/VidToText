@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# عدم تحميل النموذج فور الإقلاع لتفادي خطأ الذاكرة (Out of Memory) على الخطة المجانية
+# عدم تحميل النموذج فور الإقلاع لتفادي خطأ الذاكرة (Out of Memory)
 model = None
 
 def get_whisper_model():
@@ -43,7 +43,7 @@ def check_user_limit(client_ip: str) -> bool:
 
     data = user_limits[client_ip]
 
-    # إعادة تعيين العدّاد بعد انتهاء الـ 24 ساعة
+    # إعادة تعيين العدّاد بعد انتهاء فترة الـ 24 ساعة
     if now > data["reset_time"]:
         data["count"] = 0
         data["reset_time"] = now + timedelta(hours=WINDOW_HOURS)
@@ -89,7 +89,7 @@ def health_check():
 
 @app.post("/api/convert")
 async def convert_video(request: Request, file: UploadFile = File(...)):
-    # جلب IP العميل (مع دعم البروكسي مثل Render/Cloudflare)
+    # جلب IP العميل بدقة مع دعم البروكسي
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         client_ip = forwarded_for.split(",")[0].strip()
@@ -103,7 +103,7 @@ async def convert_video(request: Request, file: UploadFile = File(...)):
             detail="لقد تجاوزت الحد المسموح به (3 فيديوهات كل 24 ساعة). يرجى المحاولة لاحقاً.",
         )
 
-    # إنشاء اسم ملف مؤقت آمن لضمان عدم تضارب الطلبات المتزامنة
+    # إنشاء اسم ملف مؤقت آمن
     file_ext = os.path.splitext(file.filename)[1] if file.filename else ".tmp"
     temp_file_path = f"temp_{os.urandom(8).hex()}{file_ext}"
 
@@ -119,11 +119,11 @@ async def convert_video(request: Request, file: UploadFile = File(...)):
                 detail=f"مدة الفيديو ({int(duration)} ثانية) تتجاوز الحد الأقصى المسموح به وهو 5 دقائق.",
             )
 
-        # استدعاء النموذج عند الحاجة فقط
+        # استدعاء النموذج وتحويل الصوت إلى نص
         ai_model = get_whisper_model()
         result = ai_model.transcribe(temp_file_path)
 
-        # زيادة العدّاد فقط بعد نجاح العملية
+        # زيادة العداد عند النجاح
         increment_user_limit(client_ip)
 
         return {"status": "success", "text": result.get("text", "").strip()}
@@ -134,14 +134,14 @@ async def convert_video(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء المعالجة: {str(e)}")
 
     finally:
-        # إزالة الملف المؤقت
+        # إزالة الملف المؤقت وتفريغ الذاكرة
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
-        # تفريغ الذاكرة المؤقتة (Garbage Collection)
         gc.collect()
 
 
 if __name__ == "__main__":
     import uvicorn
-    # ربط السيرفر بـ 0.0.0.0 ليقبل الاتصالات الخارجية في بيئة Docker
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # قراءة المنفذ الديناميكي المخصص من السيرفر (مثل Render Port 10000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
